@@ -603,7 +603,17 @@ function syncBar(state){
 let _lastHandledStateTs=0;
 
 onValue(playersRef,(snap)=>{
-  window.players=snap.val()||{};
+  const incoming=snap.val()||{};
+  // Debug: log any time a player's murdered status changes
+  Object.keys(incoming).forEach(id=>{
+    const prev=window.players&&window.players[id];
+    const curr=incoming[id];
+    if(prev&&prev.murdered===true&&curr.murdered!==true){
+      console.error('🚨 MURDERED RESET DETECTED for',curr.name,'— new value:',curr.murdered,'full obj:',JSON.stringify(curr));
+      console.trace('Stack trace:');
+    }
+  });
+  window.players=incoming;
   renderHost();
   renderGLobby();
   syncBar('ok');
