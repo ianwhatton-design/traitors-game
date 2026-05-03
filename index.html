@@ -734,6 +734,7 @@ window.renderHost=function(){
     const banishBtn=p.banished||p.murdered
       ?`<button class="pc-btn g" onclick="event.stopPropagation();unbanish('${p.id}')">Restore</button>`
       :`<button class="pc-btn b" onclick="event.stopPropagation();doBanish('${p.id}')">BAN</button>`;
+    const markMurderedBtn=!p.murdered?`<button class="pc-btn r" onclick="event.stopPropagation();markMurdered('${p.id}')" title="Mark as murdered">☠</button>`:'';
     const murderBtn=!p.banished&&!p.murdered?`<button class="pc-btn r${isSel?' r-active':''}" onclick="event.stopPropagation();selectForMurder('${p.id}')" title="Select for murder">🗡</button>`:'';
     const shieldBtn=!p.banished&&!p.murdered?`<button class="pc-btn" style="padding:3px;border-color:${isShielded?'var(--gold2)':'var(--border)'}" onclick="event.stopPropagation();toggleShield('${p.id}')" title="${isShielded?'Remove shield':'Shield'}">${shieldSvg(16)}</button>`:'';
     return `<div class="player-card${isSel?' selected-for-murder':''}${isDelSel?' selected-for-delete':''}${p.banished||p.murdered?' is-banished':''}" onclick="toggleDeleteSelect('${p.id}')">
@@ -741,7 +742,7 @@ window.renderHost=function(){
       <div class="pc-info"><div class="pc-name">${p.name}</div><div class="pc-role">${p.banished?'Banished':p.murdered?'Murdered':'Active'}</div></div>
       <div class="pc-actions" onclick="event.stopPropagation()">
         <button class="pc-btn gold-btn" onclick="openEdit('${p.id}')">Edit</button>
-        ${banishBtn}${murderBtn}${shieldBtn}
+        ${banishBtn}${markMurderedBtn}${murderBtn}${shieldBtn}
       </div>
     </div>`;
   }).join('');
@@ -809,6 +810,19 @@ window.unbanish=function(id){
   syncBar('syncing');
   // Only clear banished — never touch murdered
   update(ref(db,'players/'+id),{banished:false,shielded:false});
+}
+window.markMurdered=function(id){
+  syncBar('syncing');
+  get(ref(db,'players/'+id)).then(snap=>{
+    const current=snap.val()||{};
+    return update(ref(db,'players/'+id),{
+      name:current.name||'',
+      photo:current.photo||null,
+      banished:current.banished===true,
+      murdered:true,
+      shielded:false
+    });
+  }).then(()=>console.log('Manually marked murdered'));
 }
 window.toggleShield=function(id){
   syncBar('syncing');
