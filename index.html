@@ -1033,26 +1033,30 @@ function showGroupVictimReveal(victim){
   // Only host writes to Firebase
   if(isHostMode){
     syncBar('syncing');
-    // Use local cache — no get() to avoid race condition with other writes
-    const updates={};
-    updates[victim.id+'/murdered']=true;
-    // Clear ALL shields using local player list
-    Object.keys(window.players).forEach(id=>{
-      updates[id+'/shielded']=false;
-    });
-    // Update local cache immediately
-    Object.keys(window.players).forEach(id=>{window.players[id].shielded=false;});
-    if(window.players[victim.id]) window.players[victim.id].murdered=true;
-    console.log('Writing murder+shield reset for',Object.keys(updates).length,'entries');
-    update(playersRef,updates)
-      .then(()=>console.log('Murder+shield write complete'))
+    // Write murder exactly like banish — get() first then write full object
+    get(ref(db,'players/'+victim.id)).then(snap=>{
+      const current=snap.val()||{};
+      return update(ref(db,'players/'+victim.id),{
+        name:current.name||victim.name||'',
+        photo:current.photo||victim.photo||null,
+        banished:current.banished===true,
+        murdered:true,
+        shielded:false
+      });
+    }).then(()=>{
+      // Clear shields on all other players individually
+      const shieldUpdates=Object.keys(window.players)
+        .filter(id=>id!==victim.id&&window.players[id].shielded);
+      return Promise.all(shieldUpdates.map(id=>
+        update(ref(db,'players/'+id),{shielded:false})
+      ));
+    }).then(()=>console.log('Murder write complete'))
       .catch(e=>console.error('Murder write failed:',e));
     pushState('victimReveal',{victimId:victim.id});
-  } else {
-    // Display device — just update local cache
-    Object.keys(window.players).forEach(id=>{window.players[id].shielded=false;});
-    if(window.players[victim.id]) window.players[victim.id].murdered=true;
   }
+  // Update local cache immediately
+  Object.keys(window.players).forEach(id=>{window.players[id].shielded=false;});
+  if(window.players[victim.id]) window.players[victim.id].murdered=true;
   // Auto-return after 10 seconds
   setTimeout(()=>{
     vr.style.display='none';
