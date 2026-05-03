@@ -778,6 +778,8 @@ window.savePlayer=function(){
 }
 window.doBanish=function(id){
   syncBar('syncing');
+  // Update local cache immediately before Firebase
+  if(window.players[id]) window.players[id].banished=true;
   update(ref(db,'players/'+id),{banished:true});
   // Show banish screen on group display
   const p=getPlayer(id);if(p){setTimeout(()=>gOpenBanish({...p,banished:true}),300);}
@@ -785,7 +787,15 @@ window.doBanish=function(id){
 }
 window.unbanish=function(id){
   syncBar('syncing');
-  update(ref(db,'players/'+id),{banished:false,murdered:false});
+  const p=getPlayer(id);if(!p)return;
+  // Only clear the relevant flag — don't touch the other
+  if(p.murdered){
+    if(window.players[id]) window.players[id].murdered=false;
+    update(ref(db,'players/'+id),{murdered:false});
+  } else {
+    if(window.players[id]) window.players[id].banished=false;
+    update(ref(db,'players/'+id),{banished:false});
+  }
 }
 window.toggleShield=function(id){
   const p=getPlayer(id);if(!p)return;
