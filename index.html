@@ -603,24 +603,7 @@ function syncBar(state){
 let _lastHandledStateTs=0;
 
 onValue(playersRef,(snap)=>{
-  const incoming=snap.val()||{};
-  // Protect murdered/banished flags — never let Firebase overwrite true with undefined/false
-  // unless we explicitly wrote false ourselves
-  Object.keys(incoming).forEach(id=>{
-    const prev=window.players[id];
-    if(!prev) return;
-    // If locally we know this player is murdered/banished, preserve it
-    // even if the incoming snapshot doesn't have the flag
-    if(prev.murdered&&!incoming[id].murdered){
-      console.warn('Preserving murdered flag for',incoming[id].name);
-      incoming[id].murdered=true;
-    }
-    if(prev.banished&&!incoming[id].banished){
-      console.warn('Preserving banished flag for',incoming[id].name);
-      incoming[id].banished=true;
-    }
-  });
-  window.players=incoming;
+  window.players=snap.val()||{};
   renderHost();
   renderGLobby();
   syncBar('ok');
@@ -1186,22 +1169,21 @@ function seedPlayers(){
 }
 
 function migratePlayerFields(){
-  // Ensure every player has murdered/banished/shielded explicitly set
-  // Fixes the bug where missing fields get treated as false by Firebase
   get(playersRef).then(snap=>{
     const data=snap.val()||{};
     const updates={};
     Object.keys(data).forEach(id=>{
       const p=data[id];
-      if(p.murdered===undefined||p.murdered===null) updates[id+'/murdered']=false;
-      if(p.banished===undefined||p.banished===null) updates[id+'/banished']=false;
-      if(p.shielded===undefined||p.shielded===null) updates[id+'/shielded']=false;
+      // ONLY add field if completely absent — never overwrite an existing value
+      if(!Object.prototype.hasOwnProperty.call(p,'murdered')) updates[id+'/murdered']=false;
+      if(!Object.prototype.hasOwnProperty.call(p,'banished')) updates[id+'/banished']=false;
+      if(!Object.prototype.hasOwnProperty.call(p,'shielded')) updates[id+'/shielded']=false;
     });
     if(Object.keys(updates).length>0){
-      console.log('Migrating',Object.keys(updates).length,'missing player fields');
+      console.log('Migration: adding',Object.keys(updates).length,'missing fields (never overwriting)');
       update(playersRef,updates);
     } else {
-      console.log('All player fields OK — no migration needed');
+      console.log('Migration: all fields present, nothing to do');
     }
   });
 }
