@@ -1139,17 +1139,7 @@ const SEED_PLAYERS=[
 ];
 
 function seedPlayers(){
-  // Force reseed — clears existing players and adds 24 test players
-  // Only seeds if DB has fewer than 5 players
-  get(playersRef).then(snap=>{
-    const existing=snap.val()||{};
-    if(Object.keys(existing).length>=5) return;
-    console.log('Seeding 24 test players...');
-    SEED_PLAYERS.forEach(({name,photo})=>{
-      const newRef=push(playersRef);
-      set(newRef,{name,photo,banished:false,murdered:false,shielded:false});
-    });
-  });
+  // Disabled — add real players via the host panel
 }
 
 seedPlayers();
