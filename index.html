@@ -797,16 +797,8 @@ window.doBanish=function(id){
 }
 window.unbanish=function(id){
   syncBar('syncing');
-  get(ref(db,'players/'+id)).then(snap=>{
-    const current=snap.val()||{};
-    return update(ref(db,'players/'+id),{
-      name:current.name||'',
-      photo:current.photo||null,
-      banished:false,
-      murdered:false,
-      shielded:false
-    });
-  });
+  // Only clear banished — never touch murdered
+  update(ref(db,'players/'+id),{banished:false,shielded:false});
 }
 window.toggleShield=function(id){
   syncBar('syncing');
@@ -913,7 +905,7 @@ window.renderGLobby=function(){
   }).join('');
 }
 window.gOpenBanish=function(p){
-  if(isHostMode&&!p.banished) update(ref(db,'players/'+p.id),{banished:true});
+  // banished flag already set by doBanish before gOpenBanish is called — no write needed here
   const imgHtml=p.photo?`<img src="${p.photo}" class="gb-portrait-img">`:`<div class="gb-av">${initials(p.name)}</div>`;
   document.getElementById('gbPortrait').innerHTML=`<div style="position:relative;display:inline-block">${imgHtml}<div class="gb-stamp" id="gbStamp">BANISHED</div></div>`;
   document.getElementById('gbName').textContent=p.name;
@@ -1172,27 +1164,7 @@ function seedPlayers(){
   // Disabled — add real players via the host panel
 }
 
-function migratePlayerFields(){
-  get(playersRef).then(snap=>{
-    const data=snap.val()||{};
-    const updates={};
-    Object.keys(data).forEach(id=>{
-      const p=data[id];
-      // ONLY add field if completely absent — never overwrite an existing value
-      if(!Object.prototype.hasOwnProperty.call(p,'murdered')) updates[id+'/murdered']=false;
-      if(!Object.prototype.hasOwnProperty.call(p,'banished')) updates[id+'/banished']=false;
-      if(!Object.prototype.hasOwnProperty.call(p,'shielded')) updates[id+'/shielded']=false;
-    });
-    if(Object.keys(updates).length>0){
-      console.log('Migration: adding',Object.keys(updates).length,'missing fields (never overwriting)');
-      update(playersRef,updates);
-    } else {
-      console.log('Migration: all fields present, nothing to do');
-    }
-  });
-}
 
-migratePlayerFields();
 seedPlayers();
 </script>
 </body>
