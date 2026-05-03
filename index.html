@@ -883,8 +883,8 @@ window.renderGLobby=function(){
     const img=p.photo?`<img src="${p.photo}">`:`<div class="gc-av">${initials(p.name)}</div>`;
     const gcShield=p.shielded&&!isMurdered&&!isBanished?`<div class="gc-shield">${shieldSvg(100)}</div>`:'';
     return `<div class="gc${outClass?' '+outClass:''}${p.shielded&&!isMurdered&&!isBanished?' shielded':''}" id="gc-${p.id}">
-      <div class="gc-img">${img}${stamp}</div>
-      ${gcShield}
+      <div class="gc-img">${img}</div>
+      ${stamp}${gcShield}
       <div class="gc-name">${p.name}</div>${tag}
     </div>`;
   }).join('');
