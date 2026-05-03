@@ -603,7 +603,17 @@ function syncBar(state){
 let _lastHandledStateTs=0;
 
 onValue(playersRef,(snap)=>{
-  window.players=snap.val()||{};
+  const incoming=snap.val()||{};
+  // Check if any currently-murdered player is coming back as not-murdered
+  Object.keys(incoming).forEach(id=>{
+    if(window.players[id]&&window.players[id].murdered&&!incoming[id].murdered){
+      console.warn('Firebase reset murdered flag for player:',incoming[id].name,id);
+    }
+    if(window.players[id]&&window.players[id].banished&&!incoming[id].banished){
+      console.warn('Firebase reset banished flag for player:',incoming[id].name,id);
+    }
+  });
+  window.players=incoming;
   renderHost();
   renderGLobby();
   syncBar('ok');
@@ -1020,24 +1030,26 @@ function showGroupVictimReveal(victim){
   // Only host writes to Firebase
   if(isHostMode){
     syncBar('syncing');
-    // Read fresh from Firebase then clear ALL shields + mark victim murdered in one atomic write
-    get(playersRef).then(snap=>{
-      const allData=snap.val()||{};
-      const updates={};
-      // Mark victim
-      updates[victim.id+'/murdered']=true;
-      // Clear ALL shields unconditionally — don't check current value
-      Object.keys(allData).forEach(id=>{
-        updates[id+'/shielded']=false;
-      });
-      console.log('Shield reset: clearing',Object.keys(allData).length,'players');
-      return update(playersRef,updates);
-    }).then(()=>console.log('Shield reset complete')).catch(e=>console.error('Shield reset failed:',e));
+    // Use local cache — no get() to avoid race condition with other writes
+    const updates={};
+    updates[victim.id+'/murdered']=true;
+    // Clear ALL shields using local player list
+    Object.keys(window.players).forEach(id=>{
+      updates[id+'/shielded']=false;
+    });
+    // Update local cache immediately
+    Object.keys(window.players).forEach(id=>{window.players[id].shielded=false;});
+    if(window.players[victim.id]) window.players[victim.id].murdered=true;
+    console.log('Writing murder+shield reset for',Object.keys(updates).length,'entries');
+    update(playersRef,updates)
+      .then(()=>console.log('Murder+shield write complete'))
+      .catch(e=>console.error('Murder write failed:',e));
     pushState('victimReveal',{victimId:victim.id});
+  } else {
+    // Display device — just update local cache
+    Object.keys(window.players).forEach(id=>{window.players[id].shielded=false;});
+    if(window.players[victim.id]) window.players[victim.id].murdered=true;
   }
-  // Also immediately clear shields in local cache so UI reflects it
-  Object.keys(window.players).forEach(id=>{window.players[id].shielded=false;});
-  if(window.players[victim.id]) window.players[victim.id].murdered=true;
   // Auto-return after 10 seconds
   setTimeout(()=>{
     vr.style.display='none';
